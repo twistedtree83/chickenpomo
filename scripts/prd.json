@@ -17,7 +17,7 @@
     {
       "id": "T-3",
       "description": "TimerEngine — wall-clock state machine (idle/work/break), start/pause/resume/reset/read/tick, transition events, injected now; tests cover backgrounded-tab skip",
-      "passes": false,
+      "passes": true,
       "depends": ["T-1"],
       "afk": true
     },

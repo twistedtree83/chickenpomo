@@ -35,3 +35,17 @@ Learnings:
 - Storage adapter is a plain interface, not the DOM `Storage` type — keeps the module DOM-free and trivially fakeable in Node tests. Production wiring will pass `window.localStorage`, which is structurally compatible.
 - Schema-healing on load: malformed JSON, non-object payloads, and partial-schema payloads all degrade to defaults (or fill missing keys with defaults) rather than throwing. This is the upgrade-friendly path for when v2 adds new keys.
 ---
+
+---
+[2026-05-14T03:43:00Z] T-3: TimerEngine — wall-clock state machine (idle/work/break), start/pause/resume/reset/read/tick, transition events, injected now; tests cover backgrounded-tab skip
+What was built: TimerEngine class under src/engine/ — pure-logic state machine with constructor-injected `now: () => number`, no DOM imports. Methods: start(workMs, breakMs), pause(now), resume(now), reset(), read(now), tick(now). read() returns { phase, remainingMs, progress, isRunning, isPaused }. tick() catches up across any wall-clock gap by looping work↔break transitions until now < endTime, returning only the final TransitionEvent { from, to, at } so the renderer reacts once per visible boundary. 23 vitest cases cover initial idle, start, linear progress, single + multi-cycle transitions, 30-minute backgrounded skip, 10-cycle long sleep, pause/resume freezing remaining, double-pause no-op, resume without pause no-op, idle pause no-op, reset from running/paused, and restart while running.
+Files changed: src/engine/TimerEngine.ts, src/engine/TimerEngine.test.ts, scripts/prd.json
+Learnings:
+- TS strict + noUncheckedIndexedAccess does not narrow `this.endTime !== null` inside a while-condition when the loop body re-assigns `this.endTime` (TS7022 "implicit any in own initializer"). Pattern that works: capture `const currentEnd: number | null = this.endTime` inside the loop body, break on null/below threshold, then mutate `this.endTime` via the local. Future deep modules with mutable nullable state should use this capture-then-break shape rather than fighting the narrower.
+- ESLint's `no-constant-condition` flags `while (true)`; `for (;;)` is the accepted infinite-loop form in this repo's lint config.
+- The tick() catch-up loop reports only the LAST transition rather than all skipped ones — chosen because the caller's reaction (chirp, notification, direction flip, trail reset) only needs to land on the currently-visible phase boundary. If a future iteration wants per-transition side effects (e.g., a session counter), tick() will need to return TransitionEvent[] instead.
+- pause(now) sets endTime to null and stores pausedRemainingMs; resume(now) recomputes endTime = now + pausedRemainingMs. This means tick() while paused returns null because endTime is null — no separate isPaused short-circuit branch required, though we keep the explicit check for clarity.
+- read() clamps remainingMs to [0, total] when computing progress so progress maxes at 1 even between endTime and the next tick() (visual stays at 100% rather than overshooting). The raw remainingMs returned to the caller is also clamped via Math.max(0, …) so DOM overlays never see negative times.
+- Tests inject a clock helper that closes over a mutable `t` and exposes `advance(ms)` — pattern is reusable for TrailModel/SceneRenderer tests if they need time injection later.
+---
+
