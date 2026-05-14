@@ -23,6 +23,11 @@ export interface SceneProps {
   // Must be the same clock TimerEngine was constructed with — see App.tsx.
   now: () => number;
   getEffectFlags: () => SceneEffectFlags;
+  // Held off the rAF loop until this resolves; until then the canvas stays
+  // transparent and the page's sky-coloured backdrop shows through. Prevents a
+  // flash of the renderers' fallback rectangles whenever modules get rebuilt
+  // (HMR, etc.) and the image loads haven't completed yet.
+  assetsReady: Promise<void>;
 }
 
 // Cover-mode scale: fill BOTH viewport dimensions (whichever is tighter
@@ -55,8 +60,13 @@ export function Scene(props: SceneProps): JSX.Element {
       props.notifier,
       { now: props.now, effectFlags: props.getEffectFlags },
     );
-    renderer.start();
+    let cancelled = false;
+    void props.assetsReady.then(() => {
+      if (cancelled) return;
+      renderer.start();
+    });
     return () => {
+      cancelled = true;
       renderer.stop();
     };
   }, [
@@ -69,6 +79,7 @@ export function Scene(props: SceneProps): JSX.Element {
     props.notifier,
     props.now,
     props.getEffectFlags,
+    props.assetsReady,
   ]);
 
   useEffect(() => {

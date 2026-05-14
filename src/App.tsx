@@ -15,6 +15,8 @@ import { Scene } from './components/Scene';
 import { Controls } from './components/Controls';
 import { TimerOverlay } from './components/TimerOverlay';
 import { SettingsModal } from './components/SettingsModal';
+// DEV-ONLY — remove with the DevModeButton wiring below before final release.
+import { DevModeButton } from './components/DevModeButton';
 
 interface Modules {
   // Shared clock: TimerEngine.endTime and SceneRenderer's per-frame `now` must
@@ -28,6 +30,11 @@ interface Modules {
   chicken: ChickenRenderer;
   parallax: ParallaxRenderer;
   ground: GroundRenderer;
+  // Resolves once every sprite/parallax/ground image has loaded (or failed).
+  // Scene gates its rAF loop on this so users never see the renderers' fallback
+  // rectangles during the load gap — they see the page's sky-coloured backdrop
+  // through the transparent canvas instead.
+  assetsReady: Promise<void>;
 }
 
 // Trail spans the chicken's feet range: (canvasWidth 640 − chickenLeftMargin 32
@@ -51,23 +58,36 @@ function buildModules(): Modules {
   const walkRight = new SpriteSheet(64, 64, 6, '#f1c40f');
   const walkLeft = new SpriteSheet(64, 64, 6, '#f1c40f');
   const idle = new SpriteSheet(64, 64, 6, '#f39c12');
-  void walkRight.load(`${assetBase}chicken-walk-right.png`);
-  void walkLeft.load(`${assetBase}chicken-walk-left.png`);
-  void idle.load(`${assetBase}chicken-idle.png`);
   const chicken = new ChickenRenderer(walkRight, walkLeft, idle);
   const parallax = new ParallaxRenderer();
-  void parallax.load({
-    clouds: `${assetBase}clouds.png`,
-    far: `${assetBase}hills-far.png`,
-    mid: `${assetBase}mid-trees.png`,
-    near: `${assetBase}near-grass.png`,
-  });
   const ground = new GroundRenderer();
-  void ground.load({
-    grass: `${assetBase}ground-grass.png`,
-    dirt: `${assetBase}ground-dirt.png`,
-  });
-  return { now, timer, trail, settings, chirp, notifier, chicken, parallax, ground };
+  const assetsReady = Promise.all([
+    walkRight.load(`${assetBase}chicken-walk-right.png`),
+    walkLeft.load(`${assetBase}chicken-walk-left.png`),
+    idle.load(`${assetBase}chicken-idle.png`),
+    parallax.load({
+      clouds: `${assetBase}clouds.png`,
+      far: `${assetBase}hills-far.png`,
+      mid: `${assetBase}mid-trees.png`,
+      near: `${assetBase}near-grass.png`,
+    }),
+    ground.load({
+      grass: `${assetBase}ground-grass.png`,
+      dirt: `${assetBase}ground-dirt.png`,
+    }),
+  ]).then(() => undefined);
+  return {
+    now,
+    timer,
+    trail,
+    settings,
+    chirp,
+    notifier,
+    chicken,
+    parallax,
+    ground,
+    assetsReady,
+  };
 }
 
 function useStableModules(): Modules {
@@ -154,6 +174,13 @@ export function App(): JSX.Element {
     modules.timer.skip(modules.now());
   };
 
+  // DEV-ONLY — remove with DevModeButton.
+  const handleDevStartCycle = (workMs: number, breakMs: number): void => {
+    modules.timer.reset();
+    modules.trail.resetToGrass();
+    modules.timer.start(workMs, breakMs);
+  };
+
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-[#87ceeb] text-slate-100">
       <Scene
@@ -166,6 +193,7 @@ export function App(): JSX.Element {
         notifier={modules.notifier}
         now={modules.now}
         getEffectFlags={getEffectFlags}
+        assetsReady={modules.assetsReady}
       />
       <div className="pointer-events-none absolute inset-x-0 top-6 flex justify-center">
         <div className="rounded-lg bg-slate-900/60 px-6 py-3 backdrop-blur-sm">
@@ -191,6 +219,10 @@ export function App(): JSX.Element {
         onChange={handleSettingsChange}
         onSkip={handleSkip}
       />
+      {/* DEV-ONLY — remove this block before final release. */}
+      <div className="pointer-events-auto absolute right-3 top-3 z-40">
+        <DevModeButton onStartDevCycle={handleDevStartCycle} />
+      </div>
     </main>
   );
 }
