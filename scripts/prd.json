@@ -59,7 +59,7 @@
     {
       "id": "T-9",
       "description": "GroundRenderer — tiled grass strip + dirt cells from TrailModel",
-      "passes": false,
+      "passes": true,
       "depends": ["T-4"],
       "afk": true
     },

@@ -112,4 +112,15 @@ Learnings:
 - Tile-wrap math `((offsetX % tileW) + tileW) % tileW` handles negative offsets cleanly. Looping `while (x < canvasWidth)` from `x = -wrapped` ensures the leftmost partial tile is drawn (otherwise a visible seam would appear at x=0 whenever the offset isn't a multiple of tileW).
 ---
 
+---
+[2026-05-14T04:11:00Z] T-9: GroundRenderer — tiled grass strip + dirt cells from TrailModel
+What was built: GroundRenderer under src/render/ with a GroundLayout (canvasWidth, ground y/height, tileSize=16, trail y/height/cellWidth=4/offsetX=16, grass+dirt fallback colors). load({ grass?, dirt? }) uses the same resolve-on-error contract as SpriteSheet/ParallaxRenderer. draw(ctx, cells) tiles grass across the ground strip then iterates TrailModel cells, stamping a cellWidth-wide slice of the dirt tile for each 'dirt' cell. Missing sprites fall back to flat fillRect bands. Exported DEFAULT_GROUND_LAYOUT for SceneRenderer to spread-override.
+Files changed: src/render/GroundRenderer.ts, scripts/prd.json, scripts/progress.txt
+Learnings:
+- Per CONTEXT.md "Modules NOT under test (v1): all renderers" — no GroundRenderer.test.ts written. The TrailModel-driven cells input keeps the rendering deterministic given a known cell array, so targeted tests would be easy to add later if a regression warrants it.
+- TrailModel cells are unitless cell indices, GroundRenderer is what binds them to pixels. The boundary is the `cellWidth` and `trailOffsetX` fields in GroundLayout. SceneRenderer (T-10) must keep TrailModel's numCells in sync with `(canvasWidth - 2*chickenMargin) / cellWidth` so chicken-x and trail-x stay aligned; if the chicken's left/right margins change, both `trailOffsetX` here and the chicken's leftMargin in SceneRenderer must change together.
+- Dirt slice math: each 4-px cell is drawn from a 4-wide slice of the 16x16 dirt tile, with srcX = destX mod tileSize so the tile texture appears continuous across adjacent dirt cells (no per-cell seam). The two-step draw handles the case where the slice wraps across the tile boundary (srcX + cellWidth > tileSize) by drawing the remainder from srcX=0 of the next tile column. With the current 16/4 alignment this rarely triggers since 4 divides 16 cleanly, but keeping the wrap-fallback means trailOffsetX or cellWidth can change without re-deriving the slice path.
+- Imported `Cell` type from '../engine/TrailModel' with `import type` so the renderer adds zero runtime dependency on the engine module — only a type-level import that disappears at compile time. Preserves the renderer's "stateless beyond cached image handles" property.
+- Grass tiling iterates in nested for-loops (y outer, x inner) over the whole ground strip rather than a single scanline. Ground strip is 45px tall but tileSize is 16, so the bottom row will draw past y=180 by up to 3px — that's outside the canvas and gets clipped harmlessly. If a future iteration uses a non-power-of-2 tile or a precise ground height, switch to a clipped drawImage(sourceY=0, sliceH=remaining).
+---
 
