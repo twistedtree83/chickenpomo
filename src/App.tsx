@@ -17,6 +17,9 @@ import { TimerOverlay } from './components/TimerOverlay';
 import { SettingsModal } from './components/SettingsModal';
 
 interface Modules {
+  // Shared clock: TimerEngine.endTime and SceneRenderer's per-frame `now` must
+  // come from the same source, otherwise progress stays pinned at 0.
+  now: () => number;
   timer: TimerEngine;
   trail: TrailModel;
   settings: SettingsStore;
@@ -27,36 +30,44 @@ interface Modules {
   ground: GroundRenderer;
 }
 
-// (canvasWidth 320 − chickenLeftMargin 16 − chickenRightMargin 64) / cellWidth 4 = 60.
-// Must stay aligned with DEFAULT_SCENE_LAYOUT and DEFAULT_GROUND_LAYOUT.
-const TRAIL_NUM_CELLS = 60;
+// Trail spans the chicken's feet range: (canvasWidth 640 − chickenLeftMargin 32
+// − chickenRightMargin 64) / cellWidth 8 = 68. Leading edge sits at the
+// chicken's foot center, so trailOffsetX (64) = chickenLeftMargin + sprite
+// half-width (32). Must stay aligned with DEFAULT_SCENE_LAYOUT and
+// DEFAULT_GROUND_LAYOUT.
+const TRAIL_NUM_CELLS = 68;
 
 function buildModules(): Modules {
-  const timer = new TimerEngine(() => Date.now());
+  const now = (): number => Date.now();
+  const timer = new TimerEngine(now);
   const trail = new TrailModel(TRAIL_NUM_CELLS);
   const settings = new SettingsStore(window.localStorage);
   const chirp = new AudioChirp();
   const notifier = new Notifier();
-  const walkRight = new SpriteSheet(48, 48, 6, '#f1c40f');
-  const walkLeft = new SpriteSheet(48, 48, 6, '#f1c40f');
-  const idle = new SpriteSheet(48, 48, 2, '#f39c12');
-  void walkRight.load('/sprites/chicken-walk-right.png');
-  void walkLeft.load('/sprites/chicken-walk-left.png');
-  void idle.load('/sprites/chicken-idle.png');
+  // BASE_URL ends with '/' and matches `base` in vite.config.ts — required so
+  // GitHub Pages can serve assets from /chickenpomo/sprites/* rather than the
+  // host root.
+  const assetBase = `${import.meta.env.BASE_URL}sprites/`;
+  const walkRight = new SpriteSheet(64, 64, 6, '#f1c40f');
+  const walkLeft = new SpriteSheet(64, 64, 6, '#f1c40f');
+  const idle = new SpriteSheet(64, 64, 6, '#f39c12');
+  void walkRight.load(`${assetBase}chicken-walk-right.png`);
+  void walkLeft.load(`${assetBase}chicken-walk-left.png`);
+  void idle.load(`${assetBase}chicken-idle.png`);
   const chicken = new ChickenRenderer(walkRight, walkLeft, idle);
   const parallax = new ParallaxRenderer();
   void parallax.load({
-    clouds: '/sprites/clouds.png',
-    far: '/sprites/hills-far.png',
-    mid: '/sprites/mid-trees.png',
-    near: '/sprites/near-grass.png',
+    clouds: `${assetBase}clouds.png`,
+    far: `${assetBase}hills-far.png`,
+    mid: `${assetBase}mid-trees.png`,
+    near: `${assetBase}near-grass.png`,
   });
   const ground = new GroundRenderer();
   void ground.load({
-    grass: '/sprites/ground-grass.png',
-    dirt: '/sprites/ground-dirt.png',
+    grass: `${assetBase}ground-grass.png`,
+    dirt: `${assetBase}ground-dirt.png`,
   });
-  return { timer, trail, settings, chirp, notifier, chicken, parallax, ground };
+  return { now, timer, trail, settings, chirp, notifier, chicken, parallax, ground };
 }
 
 function useStableModules(): Modules {
@@ -70,7 +81,7 @@ function useStableModules(): Modules {
 export function App(): JSX.Element {
   const modules = useStableModules();
   const [settings, setSettings] = useState<Settings>(() => modules.settings.get());
-  const [state, setState] = useState<TimerState>(() => modules.timer.read(Date.now()));
+  const [state, setState] = useState<TimerState>(() => modules.timer.read(modules.now()));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -83,7 +94,7 @@ export function App(): JSX.Element {
   useEffect(() => {
     let handle = 0;
     const loop = (): void => {
-      setState(modules.timer.read(Date.now()));
+      setState(modules.timer.read(modules.now()));
       handle = window.requestAnimationFrame(loop);
     };
     handle = window.requestAnimationFrame(loop);
@@ -105,7 +116,7 @@ export function App(): JSX.Element {
       hasRequestedNotificationPermissionRef.current = true;
       void modules.notifier.requestPermission();
     }
-    const now = Date.now();
+    const now = modules.now();
     const current = modules.timer.read(now);
     if (current.isPaused) {
       modules.timer.resume(now);
@@ -119,7 +130,7 @@ export function App(): JSX.Element {
   };
 
   const handlePause = (): void => {
-    modules.timer.pause(Date.now());
+    modules.timer.pause(modules.now());
   };
 
   const handleReset = (): void => {
@@ -140,12 +151,11 @@ export function App(): JSX.Element {
   };
 
   const handleSkip = (): void => {
-    modules.timer.skip(Date.now());
+    modules.timer.skip(modules.now());
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between gap-6 bg-slate-900 p-6 text-slate-100">
-      <TimerOverlay state={state} workMinutes={settings.workMinutes} />
+    <main className="relative h-screen w-screen overflow-hidden bg-[#87ceeb] text-slate-100">
       <Scene
         timer={modules.timer}
         trail={modules.trail}
@@ -154,15 +164,25 @@ export function App(): JSX.Element {
         ground={modules.ground}
         chirp={modules.chirp}
         notifier={modules.notifier}
+        now={modules.now}
         getEffectFlags={getEffectFlags}
       />
-      <Controls
-        state={state}
-        onStart={handleStart}
-        onPause={handlePause}
-        onReset={handleReset}
-        onOpenSettings={handleOpenSettings}
-      />
+      <div className="pointer-events-none absolute inset-x-0 top-6 flex justify-center">
+        <div className="rounded-lg bg-slate-900/60 px-6 py-3 backdrop-blur-sm">
+          <TimerOverlay state={state} workMinutes={settings.workMinutes} />
+        </div>
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center">
+        <div className="pointer-events-auto rounded-lg bg-slate-900/60 px-4 py-3 backdrop-blur-sm">
+          <Controls
+            state={state}
+            onStart={handleStart}
+            onPause={handlePause}
+            onReset={handleReset}
+            onOpenSettings={handleOpenSettings}
+          />
+        </div>
+      </div>
       <SettingsModal
         open={settingsOpen}
         settings={settings}

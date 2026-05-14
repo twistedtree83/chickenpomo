@@ -17,11 +17,14 @@ export interface SceneLayout {
 }
 
 export const DEFAULT_SCENE_LAYOUT: SceneLayout = {
-  canvasWidth: 320,
-  canvasHeight: 180,
-  chickenLeftMargin: 16,
+  canvasWidth: 640,
+  canvasHeight: 360,
+  chickenLeftMargin: 32,
   chickenRightMargin: 64,
-  chickenY: 122,
+  // 64-tall chicken frame, bottom aligned to y=328 so feet land on the bottom
+  // edge of the dirt trail strip (trailY 296 + trailHeight 32). The chicken
+  // walks along the dirt path; foreground grass tiles continue below it.
+  chickenY: 264,
 };
 
 export interface SceneEffectFlags {

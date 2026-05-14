@@ -18,14 +18,19 @@ export interface GroundLayout {
 }
 
 export const DEFAULT_GROUND_LAYOUT: GroundLayout = {
-  canvasWidth: 320,
-  y: 135,
-  height: 45,
-  tileSize: 16,
-  trailY: 148,
-  trailHeight: 16,
-  cellWidth: 4,
-  trailOffsetX: 16,
+  canvasWidth: 640,
+  y: 270,
+  height: 90,
+  tileSize: 32,
+  trailY: 296,
+  trailHeight: 32,
+  cellWidth: 8,
+  // Trail leading edge sits under the chicken's feet (sprite center). The
+  // chicken's top-left x ranges over [chickenLeftMargin, canvasWidth -
+  // chickenRightMargin] = [32, 576], so its feet center ranges over [64, 608].
+  // trailOffsetX matches that lower bound; trail length is unchanged
+  // (68 cells × 8 px = 544), so the trailing edge lands at 608 = max foot x.
+  trailOffsetX: 64,
   grassFallbackColor: '#4a8a3a',
   dirtFallbackColor: '#7a5230',
 };

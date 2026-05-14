@@ -9,8 +9,8 @@ import type { GroundRenderer } from '../render/GroundRenderer';
 import type { AudioChirp } from '../audio/AudioChirp';
 import type { Notifier } from '../notify/Notifier';
 
-const LOGICAL_WIDTH = 320;
-const LOGICAL_HEIGHT = 180;
+const LOGICAL_WIDTH = 640;
+const LOGICAL_HEIGHT = 360;
 
 export interface SceneProps {
   timer: TimerEngine;
@@ -20,13 +20,19 @@ export interface SceneProps {
   ground: GroundRenderer;
   chirp: AudioChirp;
   notifier: Notifier;
+  // Must be the same clock TimerEngine was constructed with — see App.tsx.
+  now: () => number;
   getEffectFlags: () => SceneEffectFlags;
 }
 
+// Cover-mode scale: fill BOTH viewport dimensions (whichever is tighter
+// determines content overflow, not bars). Vertical overflow is clipped by
+// the parent's overflow:hidden — the canvas is centered, so the trim is
+// split between top (sky cloud crowns) and bottom (lower ground tiles).
+// Horizontal overflow is clipped similarly when the viewport is portrait.
+// Pixels stay crisp via `image-rendering: pixelated`.
 function computeScale(viewportW: number, viewportH: number): number {
-  const sx = Math.floor(viewportW / LOGICAL_WIDTH);
-  const sy = Math.floor(viewportH / LOGICAL_HEIGHT);
-  return Math.max(1, Math.min(sx, sy));
+  return Math.max(1, Math.max(viewportW / LOGICAL_WIDTH, viewportH / LOGICAL_HEIGHT));
 }
 
 export function Scene(props: SceneProps): JSX.Element {
@@ -47,7 +53,7 @@ export function Scene(props: SceneProps): JSX.Element {
       props.ground,
       props.chirp,
       props.notifier,
-      { effectFlags: props.getEffectFlags },
+      { now: props.now, effectFlags: props.getEffectFlags },
     );
     renderer.start();
     return () => {
@@ -61,6 +67,7 @@ export function Scene(props: SceneProps): JSX.Element {
     props.ground,
     props.chirp,
     props.notifier,
+    props.now,
     props.getEffectFlags,
   ]);
 
@@ -86,12 +93,14 @@ export function Scene(props: SceneProps): JSX.Element {
   }, []);
 
   return (
-    <div ref={containerRef} className="flex w-full flex-1 items-center justify-center">
+    <div
+      ref={containerRef}
+      className="absolute inset-0 flex items-center justify-center"
+    >
       <canvas
         ref={canvasRef}
         width={LOGICAL_WIDTH}
         height={LOGICAL_HEIGHT}
-        className="bg-black"
         style={{ imageRendering: 'pixelated' }}
       />
     </div>

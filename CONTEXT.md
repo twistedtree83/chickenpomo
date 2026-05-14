@@ -60,10 +60,11 @@ These names appear in code, tests, commits, and prd.json descriptions. Do not in
 
 ## Canvas + rendering invariants
 
-- Logical resolution: **320 × 180**.
-- Display scale: `Math.floor(min(viewportW / 320, viewportH / 180))`. Canvas is CSS-sized to `320 * scale × 180 * scale`.
+- Logical resolution: **640 × 360**.
+- Display scale: **fractional fit-to-viewport** — `min(viewportW / 640, viewportH / 360)` (no `Math.floor`). Integer-only scaling was the original rule but was dropped in favour of an edge-to-edge canvas; `image-rendering: pixelated` keeps edges crisp at non-integer scales. The page background uses the sky colour so any aspect-ratio letterboxing blends invisibly.
 - `ctx.imageSmoothingEnabled = false`.
-- Ground strip: roughly `y = 135..180`. Chicken and trail live here. Parallax fills the rest.
+- Ground strip: roughly `y = 270..360`. Chicken and trail live here. Parallax fills the rest.
+- Parallax layers bottom-align at `baselineY = 270` so the artist's relative proportions (clouds tallest, dirt shortest) match the source composition.
 - Chicken x: `leftMargin + progress × (canvasWidth − leftMargin − rightMargin)`. Direction follows phase: right during work, left during break. **Sprite sheets handle direction** (separate `chicken-walk-right.png` and `chicken-walk-left.png`); no code-flip via `ctx.scale(-1, 1)`.
 
 ---
@@ -88,11 +89,16 @@ Tooling: **Vitest**, configured to run in a plain Node environment for v1 (no `h
 
 Sprites live under `/public/sprites/`. Drop new PNGs in; renderers pick them up. Expected files (all optional — fallback rectangles fill in until they ship):
 
-- `chicken-walk-right.png` — 6 × 48×48 = 288 × 48 strip
-- `chicken-walk-left.png` — 6 × 48×48 = 288 × 48 strip
-- `chicken-idle.png` — 2 × 48×48 = 96 × 48 strip
-- `clouds.png`, `hills-far.png`, `mid-trees.png`, `near-grass.png`
-- `ground-grass.png`, `ground-dirt.png` — 16 × 16 tiles
+- `chicken-walk-right.png` — 6 × 64×64 = 384 × 64 strip
+- `chicken-walk-left.png` — 6 × 64×64 = 384 × 64 strip
+- `chicken-idle.png` — 6 × 64×64 = 384 × 64 strip
+- `clouds.png` — 1280 × 270, transparent sky, horizontally seamless
+- `hills-far.png` — 1280 × 180, transparent sky, horizontally seamless
+- `mid-trees.png` — 1280 × 160, transparent sky, horizontally seamless. Bottom-aligns to `baselineY + 10` so the bottom 10 px sinks behind the ground tiles (`offsetY: 10` in `DEFAULT_PARALLAX_LAYOUT`).
+- `near-grass.png` — 1280 × 27, transparent sky, horizontally seamless. Bottom-aligns to `baselineY + 8` (`offsetY: 8`) so blade tips poke above the horizon and the dirt portion hides behind the ground.
+- `ground-grass.png`, `ground-dirt.png` — 32 × 32 tiles, opaque, tileable in both axes (renderer falls back to flat colours; current versions are procedurally generated dithered tiles in `build-sprites.mjs`).
+
+Source art lives under `/assets/`. Background panels are now hand-painted in Photoshop at native logical resolution (1280-wide, alpha PNGs) and dropped under `/assets/new/`. The `scripts/build-sprites.mjs` build performs three operations: (1) stitches chicken animation frames into per-direction strips using a shared bounding-box pass so the figure doesn't jitter; (2) pass-through-copies `/assets/new/*.png` into `/public/sprites/` (no resize, no chroma-key — the artist supplies game-ready alpha PNGs); (3) procedurally generates `ground-grass.png` and `ground-dirt.png`. **The old `/assets/background/` cyan-sky + 2048→540 downscale path is retired** — don't reintroduce it; either pipe new source files through the pass-through copy or hand-paint replacements at native size.
 
 ---
 
@@ -105,6 +111,10 @@ Decisions worth recording for future iterations (and the reason they were chosen
 - **Procedural Web Audio chirp** chosen over **bundled audio files** — no licensing, no asset pipeline, two lines of code.
 - **Flat two-tile trail** chosen over **Wang-tile edges** — looks fine at 320×180; can be upgraded later without changing `TrailModel`.
 - **Vitest** chosen over **Jest** — matches the Vite stack, zero extra config.
+- **Fit-to-cover fractional scaling** chosen over **integer-only fit-to-contain** (2026-05-14) — the original integer-scaling rule produced visible sky-blue letterbox bars on most desktop viewports, killing immersion. Fit-to-cover (`Math.max(viewportW/640, viewportH/360)`) fills both viewport dimensions; vertical/horizontal overflow is clipped by the parent's `overflow:hidden`. Trade-off: slight cropping of cloud crowns on wide viewports and side margins on portrait. Acceptable because the cropped regions are either sky-only or extra ground.
+- **64×64 chicken frames** chosen over **96×96** (2026-05-14) — the chicken at 96×96 felt too large relative to the world at the new 640×360 canvas. Smaller frame gives more breathing room around the trees and ground. `chickenY` moved 244 → 276 so feet still sit on the ground strip.
+- **Per-layer `offsetY` on parallax layout** chosen over **a single shared baseline** (2026-05-14) — the artist-supplied panels look better when their bottoms sink slightly behind the ground tiles, hiding the hard horizon seam. Mid-trees +10, near-grass +8, clouds and far hills 0.
+- **Native-resolution Photoshop panels** chosen over **2048-wide downscaled exports** (2026-05-14) — downscaling 2048→540 muddied pixel edges. Painting directly at the target logical size with the Pencil tool preserves crisp pixel art. The build script's downscale + chroma-key path is retired in favour of pass-through copy.
 - **Skip lives in Settings**, not in the main control row — protects against misclicks during a focus session.
 - **No long-break cycle (Cirillo 4-then-15)** in v1 — single work/break pair, alternates indefinitely. Adding the long-break ledger is anticipated to be cheap if pursued later.
 

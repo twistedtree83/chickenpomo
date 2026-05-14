@@ -8,10 +8,19 @@ export const DEFAULT_SCROLL_FACTORS = {
   near: 0.35,
 } as const;
 
+// Per-layer fallback box. When the layer image is missing, a filled rectangle
+// of this height is drawn bottom-aligned at `baselineY + offsetY`. When the
+// image is present, it is drawn at its native size bottom-aligned at the same
+// y — uniform pre-scaling at build time keeps the four layers' proportions
+// consistent with the source artwork.
+//
+// `offsetY` is the per-layer vertical nudge relative to the shared horizon.
+// Positive = lower (artwork's bottom-edge sinks behind the ground tiles, used
+// to bury trunks and break the hard horizon seam). Defaults to 0.
 export interface ParallaxLayerLayout {
-  y: number;
-  height: number;
+  fallbackHeight: number;
   fallbackColor: string;
+  offsetY?: number;
 }
 
 export interface ParallaxLayout {
@@ -20,6 +29,7 @@ export interface ParallaxLayout {
   skyColor: string;
   cloudDriftPxPerSecond: number;
   scrollFactors: { far: number; mid: number; near: number };
+  baselineY: number;
   layers: {
     clouds: ParallaxLayerLayout;
     far: ParallaxLayerLayout;
@@ -29,16 +39,19 @@ export interface ParallaxLayout {
 }
 
 export const DEFAULT_PARALLAX_LAYOUT: ParallaxLayout = {
-  canvasWidth: 320,
-  canvasHeight: 180,
+  canvasWidth: 640,
+  canvasHeight: 360,
   skyColor: '#87ceeb',
-  cloudDriftPxPerSecond: 4,
+  cloudDriftPxPerSecond: 8,
   scrollFactors: { ...DEFAULT_SCROLL_FACTORS },
+  // All four layers bottom-align here. Matches the top of the ground strip
+  // in DEFAULT_GROUND_LAYOUT.y so the world meets the ground cleanly.
+  baselineY: 270,
   layers: {
-    clouds: { y: 12, height: 24, fallbackColor: '#ffffff' },
-    far: { y: 80, height: 30, fallbackColor: '#7b9c6e' },
-    mid: { y: 95, height: 30, fallbackColor: '#558844' },
-    near: { y: 115, height: 20, fallbackColor: '#2d5a27' },
+    clouds: { fallbackHeight: 270, fallbackColor: '#ffffff' },
+    far: { fallbackHeight: 180, fallbackColor: '#7b9c6e' },
+    mid: { fallbackHeight: 140, fallbackColor: '#558844', offsetY: 10 },
+    near: { fallbackHeight: 12, fallbackColor: '#2d5a27', offsetY: 8 },
   },
 };
 
@@ -81,16 +94,17 @@ export class ParallaxRenderer {
     const p = clamp01(progress);
     const w = this.layout.canvasWidth;
     const h = this.layout.canvasHeight;
+    const baselineY = this.layout.baselineY;
 
     ctx.fillStyle = this.layout.skyColor;
     ctx.fillRect(0, 0, w, h);
 
     const cloudOffset = (wallClockMs / 1000) * this.layout.cloudDriftPxPerSecond;
-    drawLayer(ctx, this.cloudsImg, this.layout.layers.clouds, w, cloudOffset);
+    drawLayer(ctx, this.cloudsImg, this.layout.layers.clouds, w, baselineY, cloudOffset);
 
-    drawLayer(ctx, this.farImg, this.layout.layers.far, w, p * this.layout.scrollFactors.far * w);
-    drawLayer(ctx, this.midImg, this.layout.layers.mid, w, p * this.layout.scrollFactors.mid * w);
-    drawLayer(ctx, this.nearImg, this.layout.layers.near, w, p * this.layout.scrollFactors.near * w);
+    drawLayer(ctx, this.farImg, this.layout.layers.far, w, baselineY, p * this.layout.scrollFactors.far * w);
+    drawLayer(ctx, this.midImg, this.layout.layers.mid, w, baselineY, p * this.layout.scrollFactors.mid * w);
+    drawLayer(ctx, this.nearImg, this.layout.layers.near, w, baselineY, p * this.layout.scrollFactors.near * w);
   }
 }
 
@@ -123,19 +137,23 @@ function drawLayer(
   img: HTMLImageElement | null,
   layout: ParallaxLayerLayout,
   canvasWidth: number,
+  baselineY: number,
   offsetX: number,
 ): void {
+  const anchorY = baselineY + (layout.offsetY ?? 0);
   if (img === null) {
     ctx.fillStyle = layout.fallbackColor;
-    ctx.fillRect(0, layout.y, canvasWidth, layout.height);
+    ctx.fillRect(0, anchorY - layout.fallbackHeight, canvasWidth, layout.fallbackHeight);
     return;
   }
+  if (img.width <= 0 || img.height <= 0) return;
   const tileW = img.width;
-  if (tileW <= 0) return;
+  const tileH = img.height;
+  const topY = anchorY - tileH;
   const wrapped = ((offsetX % tileW) + tileW) % tileW;
   let x = -wrapped;
   while (x < canvasWidth) {
-    ctx.drawImage(img, x, layout.y);
+    ctx.drawImage(img, x, topY);
     x += tileW;
   }
 }
