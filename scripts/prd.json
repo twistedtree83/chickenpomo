@@ -52,7 +52,7 @@
     {
       "id": "T-8",
       "description": "ParallaxRenderer — L0–L3 layers, clouds drift by time, far/mid/near scroll by progress factors",
-      "passes": false,
+      "passes": true,
       "depends": ["T-1"],
       "afk": true
     },

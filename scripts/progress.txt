@@ -99,3 +99,17 @@ Learnings:
 - ChickenDirection is `'left' | 'right'` to match the sprite-sheet split (chicken-walk-left.png / chicken-walk-right.png). The renderer never code-flips via `ctx.scale(-1, 1)` — separate sheets is the contract per CONTEXT § Canvas invariants. SceneRenderer (T-10) will derive direction from TimerEngine phase: `phase === 'work' ? 'right' : 'left'`.
 ---
 
+---
+[2026-05-14T04:05:30Z] T-8: ParallaxRenderer — L0–L3 layers, clouds drift by time, far/mid/near scroll by progress factors
+What was built: ParallaxRenderer under src/render/ with a single layout object owning canvas size, sky color, cloud drift speed, per-layer scroll factors (defaults 0.08/0.18/0.35), and per-layer y/height/fallbackColor. load(urls, imageFactory?) loads any subset of {clouds, far, mid, near} via the same resolve-on-error contract as SpriteSheet so failed loads silently degrade. draw(ctx, progress, wallClockMs) fills the sky, drifts clouds by (wallClockMs/1000) × cloudDriftPxPerSecond, and scrolls each of far/mid/near by progress × factor × canvasWidth. Missing images fall back to a coloured band at the layer's y/height. Image tiling wraps horizontally with modulo math so any image width tiles cleanly across the 320-wide canvas.
+Files changed: src/render/ParallaxRenderer.ts, scripts/prd.json, scripts/progress.txt
+Learnings:
+- Per CONTEXT.md "Modules NOT under test (v1): all renderers" — no ParallaxRenderer.test.ts written. The injected imageFactory and exported DEFAULT_PARALLAX_LAYOUT keep the door open for targeted tests later.
+- Scroll factors are documented in CONTEXT as `progress × {0.08, 0.18, 0.35}` without specifying the multiplied-against unit. Chose `canvasWidth` (so progress=1 yields offsets of 25.6/57.6/112 px) because it's the most intuitive and scales sensibly if the canvas resolution ever changes. If a future iteration wants the offset relative to layer-image width instead (so a 640-wide hills strip scrolls by 51.2 px), it's a one-line swap inside `draw`.
+- Cloud drift is time-based, not progress-based — they keep moving while the timer is idle/paused, satisfying PRD User Story 23 ("clouds drift slowly regardless of timer state"). SceneRenderer should pass `performance.now()`-style monotonic ms here, not the TimerEngine elapsed.
+- The fallback colored band sits at `{ y, height }` rather than filling the full canvas, so even with zero loaded sprites the layered silhouette already communicates the scene structure (sky, far hills band, mid trees band, near grass band). This is what makes T-10/T-11 testable in-browser before any art ships.
+- DEFAULT_PARALLAX_LAYOUT is exported so SceneRenderer can spread-override individual fields (e.g., a darker sky for a future night theme) without redefining the whole layout. `scrollFactors: { ...DEFAULT_SCROLL_FACTORS }` inside the default avoids shared-reference mutation if a caller does `{ ...DEFAULT_PARALLAX_LAYOUT, scrollFactors: { ...DEFAULT_SCROLL_FACTORS, far: 0.05 } }`.
+- Tile-wrap math `((offsetX % tileW) + tileW) % tileW` handles negative offsets cleanly. Looping `while (x < canvasWidth)` from `x = -wrapped` ensures the leftmost partial tile is drawn (otherwise a visible seam would appear at x=0 whenever the offset isn't a multiple of tileW).
+---
+
+
