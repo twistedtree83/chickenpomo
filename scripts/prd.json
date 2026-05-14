@@ -66,7 +66,7 @@
     {
       "id": "T-10",
       "description": "SceneRenderer — rAF orchestrator: TimerEngine.tick → handle transition → update TrailModel → compose frame; wires AudioChirp + Notifier on transitions",
-      "passes": false,
+      "passes": true,
       "depends": ["T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9"],
       "afk": true
     },
