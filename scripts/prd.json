@@ -3,7 +3,7 @@
     {
       "id": "T-1",
       "description": "Vite + React + TypeScript (strict) + Tailwind + Vitest scaffold",
-      "passes": false,
+      "passes": true,
       "depends": [],
       "afk": true
     },

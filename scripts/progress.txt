@@ -11,3 +11,15 @@ Learnings: <patterns, gotchas, things future iterations should know>
 ---
 
 (No iterations yet — log starts on the first Ralph run.)
+
+---
+[2026-05-14T03:22:00Z] T-1: Vite + React + TypeScript (strict) + Tailwind + Vitest scaffold
+What was built: Bootstrapped the project with Vite + React 18 + TS strict mode + Tailwind 3 + Vitest 2. Strict flags include noUncheckedIndexedAccess, exactOptionalPropertyTypes, noUnusedLocals/Parameters. Added a placeholder App, Tailwind index.css, ESLint config, and a smoke test that proves Vitest runs in a pure Node environment (no jsdom).
+Files changed: package.json, tsconfig.json, vite.config.ts, vitest.config.ts, tailwind.config.js, postcss.config.js, .eslintrc.cjs, index.html, .gitignore, src/main.tsx, src/App.tsx, src/index.css, src/scaffold.test.ts
+Learnings:
+- TypeScript project references with `composite: true` require emit, which conflicts with our `noEmit: true` posture. Solved by collapsing to a single tsconfig.json that includes both `src/**` and the vite/vitest config files.
+- Vitest 2 reads `vitest.config.ts` automatically when present; we set `environment: 'node'` and `globals: false` so deep-module tests stay DOM-free and import `describe`/`it`/`expect` explicitly. Future iterations writing tests should import from 'vitest', not rely on globals.
+- Tailwind's `font-pixel` family is wired to "Press Start 2P" loaded via Google Fonts in index.html. Renderers/components can use `font-pixel` class for retro typography.
+- ESLint 8 + @typescript-eslint 7 ships with a deprecation warning; functional but worth upgrading to flat-config/eslint 9 in a future cleanup if it bites us.
+- Initial commit ("chore: initial scaffold") captured the pre-existing docs (PRD.md, CONTEXT.md, scripts/) before the feature commit. Git identity had to be set per-repo because the global config was empty.
+---
