@@ -1,0 +1,109 @@
+{
+  "tasks": [
+    {
+      "id": "T-1",
+      "description": "Vite + React + TypeScript (strict) + Tailwind + Vitest scaffold",
+      "passes": false,
+      "depends": [],
+      "afk": true
+    },
+    {
+      "id": "T-2",
+      "description": "SettingsStore — typed localStorage wrapper with injected storage adapter, versioned key, defaults, subscribe/reset; tests",
+      "passes": false,
+      "depends": ["T-1"],
+      "afk": true
+    },
+    {
+      "id": "T-3",
+      "description": "TimerEngine — wall-clock state machine (idle/work/break), start/pause/resume/reset/read/tick, transition events, injected now; tests cover backgrounded-tab skip",
+      "passes": false,
+      "depends": ["T-1"],
+      "afk": true
+    },
+    {
+      "id": "T-4",
+      "description": "TrailModel — grass/dirt cell array with stampForward / eraseBackward / cells; idempotency + monotonicity tests",
+      "passes": false,
+      "depends": ["T-1"],
+      "afk": true
+    },
+    {
+      "id": "T-5",
+      "description": "AudioChirp — Web Audio square-wave chirp with attack-decay envelope; lazy AudioContext on first user gesture",
+      "passes": false,
+      "depends": ["T-1"],
+      "afk": true
+    },
+    {
+      "id": "T-6",
+      "description": "Notifier — Notification API wrapper; idempotent permission request; fires only when document.hidden",
+      "passes": false,
+      "depends": ["T-1"],
+      "afk": true
+    },
+    {
+      "id": "T-7",
+      "description": "SpriteSheet loader + ChickenRenderer (walk frames, direction switch, idle when paused) with coloured-rectangle fallback",
+      "passes": false,
+      "depends": ["T-3"],
+      "afk": true
+    },
+    {
+      "id": "T-8",
+      "description": "ParallaxRenderer — L0–L3 layers, clouds drift by time, far/mid/near scroll by progress factors",
+      "passes": false,
+      "depends": ["T-1"],
+      "afk": true
+    },
+    {
+      "id": "T-9",
+      "description": "GroundRenderer — tiled grass strip + dirt cells from TrailModel",
+      "passes": false,
+      "depends": ["T-4"],
+      "afk": true
+    },
+    {
+      "id": "T-10",
+      "description": "SceneRenderer — rAF orchestrator: TimerEngine.tick → handle transition → update TrailModel → compose frame; wires AudioChirp + Notifier on transitions",
+      "passes": false,
+      "depends": ["T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9"],
+      "afk": true
+    },
+    {
+      "id": "T-11",
+      "description": "App + Scene + Controls (Start/Pause/Reset/⚙) + TimerOverlay (DOM mm:ss + phase label, pixel font) with integer canvas scaling",
+      "passes": false,
+      "depends": ["T-10", "T-2"],
+      "afk": true
+    },
+    {
+      "id": "T-12",
+      "description": "SettingsModal — form bound to SettingsStore with min/max validation; hosts the Skip button (skip current phase)",
+      "passes": false,
+      "depends": ["T-2", "T-11"],
+      "afk": true
+    },
+    {
+      "id": "T-13",
+      "description": "Notification permission requested on first Start click only; verify no permission prompt on page load",
+      "passes": false,
+      "depends": ["T-6", "T-11"],
+      "afk": true
+    },
+    {
+      "id": "T-14",
+      "description": "Initial sprite art dropped into /public/sprites/ (chicken-walk-right/left, idle, clouds, hills, trees, grass tiles)",
+      "passes": false,
+      "depends": ["T-7"],
+      "afk": false
+    },
+    {
+      "id": "T-15",
+      "description": "Production build verification — vite build, preview run, manual smoke of one full work→break→work cycle",
+      "passes": false,
+      "depends": ["T-12", "T-13"],
+      "afk": true
+    }
+  ]
+}
