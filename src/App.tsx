@@ -141,6 +141,10 @@ export function App(): JSX.Element {
       hasRequestedNotificationPermissionRef.current = true;
       void modules.notifier.requestPermission();
     }
+    // Must happen inside this user-gesture stack: creates the AudioContext
+    // and resumes it so the cluck on the first phase transition (which fires
+    // minutes later, well outside any gesture) actually plays.
+    modules.chirp.prime();
     const now = modules.now();
     const current = modules.timer.read(now);
     if (current.isPaused) {

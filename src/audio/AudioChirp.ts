@@ -55,6 +55,29 @@ export class AudioChirp {
     return Promise.all(tasks).then(() => undefined);
   }
 
+  // Must be called from inside a user-gesture handler (e.g. the Start click)
+  // before the first phase transition. Without this the first cluck silently
+  // drops on the floor — Chrome's autoplay policy refuses to start an
+  // AudioContext that was created in a Promise/rAF callback far from any
+  // gesture. We also kick decode here so the first play() is just a buffer
+  // swap, not a fetch+decode chain.
+  prime(): void {
+    const ctx = this.ensureContext();
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+    for (const [kind, raw] of this.encoded) {
+      if (this.decoded.has(kind)) continue;
+      void ctx
+        .decodeAudioData(raw.slice(0))
+        .then((buffer) => {
+          this.decoded.set(kind, buffer);
+          this.encoded.delete(kind);
+        })
+        .catch(() => undefined);
+    }
+  }
+
   play(kind: AudioChirpKind): void {
     const ctx = this.ensureContext();
     if (ctx.state === 'suspended') {
