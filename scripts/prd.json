@@ -24,7 +24,7 @@
     {
       "id": "T-4",
       "description": "TrailModel — grass/dirt cell array with stampForward / eraseBackward / cells; idempotency + monotonicity tests",
-      "passes": false,
+      "passes": true,
       "depends": ["T-1"],
       "afk": true
     },

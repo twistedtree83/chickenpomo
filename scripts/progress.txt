@@ -49,3 +49,15 @@ Learnings:
 - Tests inject a clock helper that closes over a mutable `t` and exposes `advance(ms)` — pattern is reusable for TrailModel/SceneRenderer tests if they need time injection later.
 ---
 
+---
+[2026-05-14T03:55:00Z] T-4: TrailModel — grass/dirt cell array with stampForward / eraseBackward / cells; idempotency + monotonicity tests
+What was built: TrailModel class under src/engine/ — a flat array of 'grass' | 'dirt' cells with a positive-integer numCells constructor. Public surface: cells (ReadonlyArray), length, stampForward(progress), eraseBackward(progress), resetToGrass(), resetToDirt(). progress is a unitless 0..1 (clamped) — no canvas/pixel coupling, per CONTEXT.md's "cell index ↔ pixel x is done by the renderer". 18 vitest cases cover construction validation, stamp/erase at boundaries (0, 1, middle), idempotency, monotonicity in both directions, clamping, the full work→break round-trip back to all-grass, and the two reset helpers.
+Files changed: src/engine/TrailModel.ts, src/engine/TrailModel.test.ts, scripts/prd.json
+Learnings:
+- PRD and CONTEXT had a subtle tension: PRD calls the stampForward parameter `progressX` (sounds like a pixel x), but CONTEXT mandates "No coupling to canvas units — cell index ↔ pixel x is done by the renderer". Resolved by treating the parameter as normalized progress in [0, 1]. Renderers will pass `chickenX / trailRangePx` (work) or the same number computed from break-progress (break). Future renderer iterations: do not push pixel coords into TrailModel; convert at the boundary.
+- cellsCovered uses Math.round(progress * length) so progress=0.5 on 10 cells yields a clean 5/5 split. floor was also viable; round was chosen because it matches the chicken's center-of-mass intuition (the chicken at 50% across has stamped roughly half the cells). If a sub-pixel jitter shows up at the trail boundary later, revisit this choice.
+- Initial floating-point test bug: stepping `for (let p = 0; p <= 1; p += 0.05)` only reached p=0.95 on the last iteration due to FP drift, so the trail was only 95% stamped. Replaced with an integer-step loop (i/steps for i in 0..steps). Future iterations writing trail/progress tests: drive with integer math, not floating-point accumulators.
+- stampForward/eraseBackward are naturally monotonic-in-one-direction because they only write 'dirt' (forward) or 'grass' (backward) — neither overwrites the opposite tile. This is what makes the simple in-place mutation safe across out-of-order calls and is verified directly by the monotonicity tests; if a future change makes stampForward also clear cells, the contract breaks.
+- ReadonlyArray return for `cells` plus `as const` would over-narrow the type to a tuple; `ReadonlyArray<Cell>` is the right typing for an array whose length is dynamic but whose contents callers must not mutate. GroundRenderer (T-9) consumes this exact shape — keep it stable.
+---
+
