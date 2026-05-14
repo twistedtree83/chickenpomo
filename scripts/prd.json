@@ -10,7 +10,7 @@
     {
       "id": "T-2",
       "description": "SettingsStore — typed localStorage wrapper with injected storage adapter, versioned key, defaults, subscribe/reset; tests",
-      "passes": false,
+      "passes": true,
       "depends": ["T-1"],
       "afk": true
     },

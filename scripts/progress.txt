@@ -23,3 +23,15 @@ Learnings:
 - ESLint 8 + @typescript-eslint 7 ships with a deprecation warning; functional but worth upgrading to flat-config/eslint 9 in a future cleanup if it bites us.
 - Initial commit ("chore: initial scaffold") captured the pre-existing docs (PRD.md, CONTEXT.md, scripts/) before the feature commit. Git identity had to be set per-repo because the global config was empty.
 ---
+
+---
+[2026-05-14T03:27:00Z] T-2: SettingsStore — typed localStorage wrapper with injected storage adapter, versioned key, defaults, subscribe/reset; tests
+What was built: SettingsStore class under src/store/ with a StorageAdapter interface (getItem/setItem/removeItem), versioned key `pomodoro.settings.v1`, frozen DEFAULT_SETTINGS (25/5/sound on/notifs on/autoCycle on/skipEnabled off), get/set(partial)/reset/subscribe API. Caches the parsed settings in-memory; persists on set, removes on reset. 17 vitest cases cover defaults, persistence round-trip, partial merge, subscribe/unsubscribe semantics, malformed JSON, partial-schema healing, and version-key isolation.
+Files changed: src/store/SettingsStore.ts, src/store/SettingsStore.test.ts
+Learnings:
+- `exactOptionalPropertyTypes: true` plus `Partial<Settings>` works fine for set(partial) because spreading skips missing keys cleanly; no need to scrub undefined.
+- `noUncheckedIndexedAccess` interacts with `Record<string, unknown>` indexing inside the schema-healing path — the typed-narrowing pattern (`typeof v['workMinutes'] === 'number' ? v['workMinutes'] : DEFAULT`) is the cleanest way to satisfy it without `as` casts. Future deep modules doing JSON parsing should follow the same shape.
+- get() returns a shallow copy so external mutation can't corrupt the cached snapshot. Tests assert this directly — keep this contract when adding nested-object settings later.
+- Storage adapter is a plain interface, not the DOM `Storage` type — keeps the module DOM-free and trivially fakeable in Node tests. Production wiring will pass `window.localStorage`, which is structurally compatible.
+- Schema-healing on load: malformed JSON, non-object payloads, and partial-schema payloads all degrade to defaults (or fill missing keys with defaults) rather than throwing. This is the upgrade-friendly path for when v2 adds new keys.
+---
