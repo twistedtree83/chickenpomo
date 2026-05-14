@@ -15,8 +15,6 @@ import { Scene } from './components/Scene';
 import { Controls } from './components/Controls';
 import { TimerOverlay } from './components/TimerOverlay';
 import { SettingsModal } from './components/SettingsModal';
-// DEV-ONLY — remove with the DevModeButton wiring below before final release.
-import { DevModeButton } from './components/DevModeButton';
 
 interface Modules {
   // Shared clock: TimerEngine.endTime and SceneRenderer's per-frame `now` must
@@ -174,13 +172,6 @@ export function App(): JSX.Element {
     modules.timer.skip(modules.now());
   };
 
-  // DEV-ONLY — remove with DevModeButton.
-  const handleDevStartCycle = (workMs: number, breakMs: number): void => {
-    modules.timer.reset();
-    modules.trail.resetToGrass();
-    modules.timer.start(workMs, breakMs);
-  };
-
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-[#87ceeb] text-slate-100">
       <Scene
@@ -219,10 +210,6 @@ export function App(): JSX.Element {
         onChange={handleSettingsChange}
         onSkip={handleSkip}
       />
-      {/* DEV-ONLY — remove this block before final release. */}
-      <div className="pointer-events-auto absolute right-3 top-3 z-40">
-        <DevModeButton onStartDevCycle={handleDevStartCycle} />
-      </div>
     </main>
   );
 }
