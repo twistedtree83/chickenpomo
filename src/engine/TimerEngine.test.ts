@@ -294,6 +294,55 @@ describe('TimerEngine', () => {
     });
   });
 
+  describe('skip', () => {
+    it('forces tick to return a work→break transition on the next call', () => {
+      const clock = makeClock();
+      const engine = new TimerEngine(clock.now);
+      engine.start(WORK, BREAK);
+      clock.advance(WORK / 4);
+      engine.skip(clock.now());
+      const event = engine.tick(clock.now());
+      expect(event?.from).toBe('work');
+      expect(event?.to).toBe('break');
+      expect(engine.read(clock.now()).phase).toBe('break');
+    });
+
+    it('forces a break→work transition when skipped during break', () => {
+      const clock = makeClock();
+      const engine = new TimerEngine(clock.now);
+      engine.start(WORK, BREAK);
+      clock.advance(WORK);
+      engine.tick(clock.now());
+      expect(engine.read(clock.now()).phase).toBe('break');
+      clock.advance(BREAK / 3);
+      engine.skip(clock.now());
+      const event = engine.tick(clock.now());
+      expect(event?.from).toBe('break');
+      expect(event?.to).toBe('work');
+      expect(engine.read(clock.now()).phase).toBe('work');
+    });
+
+    it('skip on idle is a no-op', () => {
+      const clock = makeClock();
+      const engine = new TimerEngine(clock.now);
+      engine.skip(clock.now());
+      expect(engine.read(clock.now()).phase).toBe('idle');
+      expect(engine.tick(clock.now())).toBeNull();
+    });
+
+    it('skip while paused is a no-op (must resume first)', () => {
+      const clock = makeClock();
+      const engine = new TimerEngine(clock.now);
+      engine.start(WORK, BREAK);
+      clock.advance(WORK / 2);
+      engine.pause(clock.now());
+      engine.skip(clock.now());
+      expect(engine.read(clock.now()).phase).toBe('work');
+      expect(engine.read(clock.now()).isPaused).toBe(true);
+      expect(engine.tick(clock.now())).toBeNull();
+    });
+  });
+
   describe('restart', () => {
     it('start while running discards prior phase and begins a fresh work session', () => {
       const clock = makeClock();

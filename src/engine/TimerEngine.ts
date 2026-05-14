@@ -58,6 +58,13 @@ export class TimerEngine {
     this.pausedRemainingMs = null;
   }
 
+  skip(now: number): void {
+    if (this.phase === 'idle') return;
+    if (this.pausedRemainingMs !== null) return;
+    if (this.endTime === null) return;
+    this.endTime = now;
+  }
+
   reset(): void {
     this.phase = 'idle';
     this.workMs = 0;

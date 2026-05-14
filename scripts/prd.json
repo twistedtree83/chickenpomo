@@ -80,7 +80,7 @@
     {
       "id": "T-12",
       "description": "SettingsModal — form bound to SettingsStore with min/max validation; hosts the Skip button (skip current phase)",
-      "passes": false,
+      "passes": true,
       "depends": ["T-2", "T-11"],
       "afk": true
     },

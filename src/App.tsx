@@ -14,6 +14,7 @@ import type { SceneEffectFlags } from './render/SceneRenderer';
 import { Scene } from './components/Scene';
 import { Controls } from './components/Controls';
 import { TimerOverlay } from './components/TimerOverlay';
+import { SettingsModal } from './components/SettingsModal';
 
 interface Modules {
   timer: TimerEngine;
@@ -70,6 +71,7 @@ export function App(): JSX.Element {
   const modules = useStableModules();
   const [settings, setSettings] = useState<Settings>(() => modules.settings.get());
   const [state, setState] = useState<TimerState>(() => modules.timer.read(Date.now()));
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
@@ -121,7 +123,19 @@ export function App(): JSX.Element {
   };
 
   const handleOpenSettings = (): void => {
-    // SettingsModal wiring lives in T-12.
+    setSettingsOpen(true);
+  };
+
+  const handleCloseSettings = (): void => {
+    setSettingsOpen(false);
+  };
+
+  const handleSettingsChange = (partial: Partial<Settings>): void => {
+    modules.settings.set(partial);
+  };
+
+  const handleSkip = (): void => {
+    modules.timer.skip(Date.now());
   };
 
   return (
@@ -143,6 +157,14 @@ export function App(): JSX.Element {
         onPause={handlePause}
         onReset={handleReset}
         onOpenSettings={handleOpenSettings}
+      />
+      <SettingsModal
+        open={settingsOpen}
+        settings={settings}
+        state={state}
+        onClose={handleCloseSettings}
+        onChange={handleSettingsChange}
+        onSkip={handleSkip}
       />
     </main>
   );
