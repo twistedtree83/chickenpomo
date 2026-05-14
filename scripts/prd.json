@@ -45,7 +45,7 @@
     {
       "id": "T-7",
       "description": "SpriteSheet loader + ChickenRenderer (walk frames, direction switch, idle when paused) with coloured-rectangle fallback",
-      "passes": false,
+      "passes": true,
       "depends": ["T-3"],
       "afk": true
     },
