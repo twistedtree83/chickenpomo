@@ -74,6 +74,7 @@ export function App(): JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const hasRequestedNotificationPermissionRef = useRef(false);
 
   useEffect(() => {
     return modules.settings.subscribe(setSettings);
@@ -100,6 +101,10 @@ export function App(): JSX.Element {
   );
 
   const handleStart = (): void => {
+    if (!hasRequestedNotificationPermissionRef.current) {
+      hasRequestedNotificationPermissionRef.current = true;
+      void modules.notifier.requestPermission();
+    }
     const now = Date.now();
     const current = modules.timer.read(now);
     if (current.isPaused) {

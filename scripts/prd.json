@@ -87,7 +87,7 @@
     {
       "id": "T-13",
       "description": "Notification permission requested on first Start click only; verify no permission prompt on page load",
-      "passes": false,
+      "passes": true,
       "depends": ["T-6", "T-11"],
       "afk": true
     },
