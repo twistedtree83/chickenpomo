@@ -31,7 +31,7 @@
     {
       "id": "T-5",
       "description": "AudioChirp — Web Audio square-wave chirp with attack-decay envelope; lazy AudioContext on first user gesture",
-      "passes": false,
+      "passes": true,
       "depends": ["T-1"],
       "afk": true
     },

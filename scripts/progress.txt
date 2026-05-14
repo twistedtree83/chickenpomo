@@ -61,3 +61,16 @@ Learnings:
 - ReadonlyArray return for `cells` plus `as const` would over-narrow the type to a tuple; `ReadonlyArray<Cell>` is the right typing for an array whose length is dynamic but whose contents callers must not mutate. GroundRenderer (T-9) consumes this exact shape — keep it stable.
 ---
 
+---
+[2026-05-14T03:57:30Z] T-5: AudioChirp — Web Audio square-wave chirp with attack-decay envelope; lazy AudioContext on first user gesture
+What was built: AudioChirp class under src/audio/ with constructor-injected AudioContextFactory (defaults to `globalThis.AudioContext ?? webkitAudioContext`, resolved lazily on first play()). play(kind: 'work-start' | 'break-start') creates a square-wave oscillator + GainNode with a 10ms linear attack to 0.2 gain, then a 180ms exponential decay to 0.0001. Different frequencies per kind (880 Hz work-start, 660 Hz break-start). If the cached AudioContext is suspended, play() resumes it (covers the browser autoplay-policy case where the context starts suspended until a user gesture).
+Files changed: src/audio/AudioChirp.ts, scripts/prd.json, scripts/progress.txt
+Learnings:
+- Per CONTEXT.md testing posture, AudioChirp is explicitly NOT under v1 unit test. Skipped writing AudioChirp.test.ts. The constructor-injected factory still preserves testability if a future regression warrants it — pass a fake { createOscillator, createGain, destination, currentTime, state, resume } object.
+- The default factory references `globalThis as unknown as { AudioContext?; webkitAudioContext? }` rather than `window` directly. This keeps the module evaluable in the Node-only Vitest environment (`environment: 'node'`); only calling .play() in Node would throw, and only because the factory is invoked then.
+- `exponentialRampToValueAtTime` cannot target 0 (it computes a geometric curve). Use a small floor like 0.0001 instead. If a future iteration hears a click at the tail, lengthen the linear-to-zero phase rather than reducing the floor further.
+- The PRD specifies "square-wave + attack-decay envelope" — implemented as linearRamp on attack (snappy onset), exponentialRamp on decay (natural-sounding fade). 880 Hz vs 660 Hz makes the work-start chirp clearly higher than the break-start, matching the metaphor of "step up to work, step down to rest".
+- Tail padding: osc.stop is scheduled `TAIL_SECONDS` (20ms) after the envelope ends so the final inaudible portion doesn't get clipped mid-sample. The GC-eligible nodes are dropped after stop fires; no manual disconnect needed because no reference is retained.
+- Cached AudioContext is reused across play() calls. Creating one per chirp would work but would hit the per-browser AudioContext-count cap (~6 in Chromium) on a long session.
+---
+
