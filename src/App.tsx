@@ -59,6 +59,7 @@ function buildModules(): Modules {
   const chicken = new ChickenRenderer(walkRight, walkLeft, idle);
   const parallax = new ParallaxRenderer();
   const ground = new GroundRenderer();
+  const soundBase = `${import.meta.env.BASE_URL}sounds/`;
   const assetsReady = Promise.all([
     walkRight.load(`${assetBase}chicken-walk-right.png`),
     walkLeft.load(`${assetBase}chicken-walk-left.png`),
@@ -72,6 +73,12 @@ function buildModules(): Modules {
     ground.load({
       grass: `${assetBase}ground-grass.png`,
       dirt: `${assetBase}ground-dirt.png`,
+    }),
+    chirp.load({
+      // Disgruntled cluck when the chicken is forced back to work.
+      'work-start': `${soundBase}cluck-disgruntled.wav`,
+      // Relieved cluck when the chicken gets to rest.
+      'break-start': `${soundBase}cluck-relieved.wav`,
     }),
   ]).then(() => undefined);
   return {
