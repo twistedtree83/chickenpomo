@@ -74,3 +74,15 @@ Learnings:
 - Cached AudioContext is reused across play() calls. Creating one per chirp would work but would hit the per-browser AudioContext-count cap (~6 in Chromium) on a long session.
 ---
 
+---
+[2026-05-14T04:00:00Z] T-6: Notifier — Notification API wrapper; idempotent permission request; fires only when document.hidden
+What was built: Notifier class under src/notify/ with constructor-injected NotificationProviderFactory and VisibilityCheck (both default to globalThis lookups that resolve lazily). requestPermission() short-circuits when the provider is missing or permission is already 'granted' / 'denied', and dedupes concurrent in-flight requests by caching the Promise until it settles. notify(title, body) is a no-op unless document.hidden === true AND permission === 'granted', matching CONTEXT § Notifier and PRD User Story 14.
+Files changed: src/notify/Notifier.ts, scripts/prd.json, scripts/progress.txt
+Learnings:
+- Per CONTEXT testing posture, Notifier is explicitly NOT under v1 unit test (browser-API wrapper, resists clean mocking). Skipped writing Notifier.test.ts. The injectable provider+visibility design keeps the door open for a future regression test without changing the public surface.
+- The native Notification API exposes both an instance constructor and class-level statics (Notification.permission, Notification.requestPermission()), which doesn't fit any single TS interface cleanly. Wrapped it behind a plain NotificationProvider object literal returned from the factory so consumers never touch the constructor-with-statics shape directly.
+- Idempotent permission semantics: if state is already 'granted' or 'denied', return immediately without calling requestPermission() again (per-browser behaviour of redundant calls varies — some return cached, some no-op, Safari historically prompted again). Concurrent first-time callers share a single in-flight Promise that clears on settle.
+- defaultVisibilityCheck reads `globalThis.document?.hidden` via an `unknown` cast rather than referencing `document` directly, keeping the module evaluable under Vitest's Node environment. The cached `cachedProvider: NotificationProvider | null | undefined` tri-state distinguishes "factory hasn't run" (undefined) from "factory ran and returned null" (no API available) — important so we don't re-invoke the factory each call in non-browser environments.
+- Notifier wiring (T-10/T-13) should call notify() unconditionally on every TransitionEvent; the document.hidden + permission gating lives inside notify(), not at the call site. T-13's "permission requested on first Start" is satisfied by having Controls call notifier.requestPermission() inside the Start handler.
+---
+

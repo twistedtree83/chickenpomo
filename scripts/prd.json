@@ -38,7 +38,7 @@
     {
       "id": "T-6",
       "description": "Notifier — Notification API wrapper; idempotent permission request; fires only when document.hidden",
-      "passes": false,
+      "passes": true,
       "depends": ["T-1"],
       "afk": true
     },
