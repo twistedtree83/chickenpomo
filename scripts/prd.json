@@ -73,7 +73,7 @@
     {
       "id": "T-11",
       "description": "App + Scene + Controls (Start/Pause/Reset/⚙) + TimerOverlay (DOM mm:ss + phase label, pixel font) with integer canvas scaling",
-      "passes": false,
+      "passes": true,
       "depends": ["T-10", "T-2"],
       "afk": true
     },
