@@ -101,7 +101,7 @@
     {
       "id": "T-15",
       "description": "Production build verification — vite build, preview run, manual smoke of one full work→break→work cycle",
-      "passes": false,
+      "passes": true,
       "depends": ["T-12", "T-13"],
       "afk": true
     }
